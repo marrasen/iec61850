@@ -2,25 +2,68 @@ package iec61850
 
 // #include <iec61850_server.h>
 import "C"
+
 import (
 	"os"
 	"unsafe"
 )
 
 type IedModel struct {
-	model *C.IedModel
+	Model *C.IedModel
+}
+
+// This is a little hacky but it works for calls from runtime_scl.
+//
+// The pointer must be a pointer to the C version of the IedModel.
+func NewIedModelFromPointer(model unsafe.Pointer) *IedModel {
+	return &IedModel{
+		Model: (*C.IedModel)(model),
+	}
+}
+
+type ModelNode struct {
+	ObjectReference string
+	_modelNode      unsafe.Pointer
 }
 
 func NewIedModel(name string) *IedModel {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
 	return &IedModel{
-		model: C.IedModel_create(cname),
+		Model: C.IedModel_create(cname),
 	}
 }
 
 func (m *IedModel) Destroy() {
-	C.IedModel_destroy(m.model)
+	C.IedModel_destroy(m.Model)
+}
+
+func (m *IedModel) GetModelNodeByObjectReference(objectRef string) *ModelNode {
+	cObjectRef := C.CString(objectRef)
+	defer C.free(unsafe.Pointer(cObjectRef))
+
+	do := C.IedModel_getModelNodeByObjectReference(m.Model, cObjectRef)
+	if do == nil {
+		return nil
+	}
+	return &ModelNode{_modelNode: unsafe.Pointer(do), ObjectReference: objectRef}
+}
+
+func (m *ModelNode) GetLogicalNode(node string) *LogicalNode {
+	cNode := C.CString(node)
+	defer C.free(unsafe.Pointer(cNode))
+
+	logicalNode := C.LogicalDevice_getLogicalNode((*C.LogicalDevice)(m._modelNode), cNode)
+
+	return &LogicalNode{
+		node: logicalNode,
+	}
+}
+
+func (m *ModelNode) ConvertToDataObject() *DataObject {
+	return &DataObject{
+		object: (*C.DataObject)(m._modelNode),
+	}
 }
 
 func CreateModelFromConfigFileEx(filepath string) (*IedModel, error) {
@@ -33,7 +76,7 @@ func CreateModelFromConfigFileEx(filepath string) (*IedModel, error) {
 	// 释放内存
 	defer C.free(unsafe.Pointer(cFilepath))
 	model := &IedModel{
-		model: C.ConfigFileParser_createModelFromConfigFileEx(cFilepath),
+		Model: C.ConfigFileParser_createModelFromConfigFileEx(cFilepath),
 	}
 	return model, nil
 }
@@ -46,7 +89,7 @@ func (m *IedModel) CreateLogicalDevice(name string) *LogicalDevice {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
 	return &LogicalDevice{
-		device: C.LogicalDevice_create(cname, m.model),
+		device: C.LogicalDevice_create(cname, m.Model),
 	}
 }
 
