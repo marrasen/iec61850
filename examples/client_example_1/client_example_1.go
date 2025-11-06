@@ -73,7 +73,6 @@ func run() error {
 	}
 
 	fmt.Printf("Installing report handler for %s (rptId=%s)\n", rcbRef, rcb.RptId)
-	reports := make(chan struct{}, 1)
 	if err := client.InstallReportHandler(rcbRef, rcb.RptId, func(cr iec61850.ClientReport) {
 		fmt.Printf("received report for %s\n", cr.GetRcbReference())
 		// Print first 4 elements like the C example (GGIO1.SPCSOi.stVal)
@@ -88,7 +87,6 @@ func run() error {
 				fmt.Printf("  GGIO1.SPCSO%d.stVal: %v (included for reason %d)\n", i, val.Value, reason)
 			}
 		}
-		reports <- struct{}{}
 	}); err != nil {
 		return fmt.Errorf("failed to install report handler: %w", err)
 	}
