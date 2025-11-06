@@ -14,6 +14,8 @@ import "C"
 func GetVersionString() string {
 	value := C.LibIEC61850_getVersionString()
 	return C.GoString(value)
+}
+
 type (
 	Timestamp struct {
 		cTimestamp C.Timestamp

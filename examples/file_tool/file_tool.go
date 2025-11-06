@@ -3,9 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/marrasen/iec61850"
 	"os"
 	"strings"
+
+	"github.com/marrasen/iec61850"
 )
 
 func showDirectory(client *iec61850.Client, subdir string) error {
@@ -51,7 +52,7 @@ func run() error {
 
 	fmt.Printf("Using libIEC61850 version %s\n\n", iec61850.GetVersionString())
 
-	client, err := iec61850.NewClient(&iec61850.Settings{
+	client, err := iec61850.NewClient(iec61850.Settings{
 		Host:           host,
 		Port:           port,
 		ConnectTimeout: 10000,

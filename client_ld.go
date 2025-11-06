@@ -60,9 +60,9 @@ func (c *Client) GetLogicalDeviceList() DataModel {
 
 						dataSetMembers := C.IedConnection_getDataSetDirectory(c.conn, &clientError, cdataSetRef, &isDeletable)
 						if isDeletable {
-							fmt.Printf("    Data set: %s (deletable)\n", ds.Data)
+							ds.IsDeletable = true
 						} else {
-							fmt.Printf("    Data set: %s (not deletable)\n", ds.Data)
+							ds.IsDeletable = false
 						}
 						dataSetMemberRef := dataSetMembers.next
 						for dataSetMemberRef != nil {

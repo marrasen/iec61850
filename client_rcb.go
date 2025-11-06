@@ -2,9 +2,11 @@ package iec61850
 
 // #include <iec61850_client.h>
 // #include <iec61850_common.h>
+// #include <mms_value.h>
 import "C"
 
 import (
+	"encoding/hex"
 	"unsafe"
 )
 
@@ -33,6 +35,9 @@ type ClientReportControlBlock struct {
 	Resv    bool    // Reservation for URCB
 	TrgOps  TrgOps  // 触发条件
 	OptFlds OptFlds // 报告选项
+	RptId   string  // RCB report ID
+	DatSet  string  // Data set reference
+	Owner   string  // Current owner (IP:port) if enabled
 }
 
 func (c *Client) GetRCBValues(objectReference string) (*ClientReportControlBlock, error) {
@@ -43,13 +48,30 @@ func (c *Client) GetRCBValues(objectReference string) (*ClientReportControlBlock
 	if rcb == nil {
 		return nil, GetIedClientError(clientError)
 	}
-	return &ClientReportControlBlock{
+	defer C.ClientReportControlBlock_destroy(rcb)
+	// Convert Owner from MMS octet string to a hex string (may contain binary data)
+	ownerMms := C.ClientReportControlBlock_getOwner(rcb)
+	ownerStr := ""
+	if ownerMms != nil {
+		sz := C.MmsValue_getOctetStringSize(ownerMms)
+		buf := C.MmsValue_getOctetStringBuffer(ownerMms)
+		if sz > 0 && buf != nil {
+			b := C.GoBytes(unsafe.Pointer(buf), C.int(sz))
+			ownerStr = hex.EncodeToString(b)
+		}
+	}
+
+	info := &ClientReportControlBlock{
 		Ena:     c.getRCBEnable(rcb),
 		IntgPd:  int(c.getRCBIntgPd(rcb)),
 		Resv:    c.getRCBResv(rcb),
 		TrgOps:  c.getTrgOps(rcb),
 		OptFlds: c.getOptFlds(rcb),
-	}, nil
+		RptId:   C.GoString(C.ClientReportControlBlock_getRptId(rcb)),
+		DatSet:  C.GoString(C.ClientReportControlBlock_getDataSetReference(rcb)),
+		Owner:   ownerStr,
+	}
+	return info, nil
 }
 
 func (c *Client) getRCBEnable(rcb C.ClientReportControlBlock) bool {
@@ -96,6 +118,9 @@ func (c *Client) getTrgOps(rcb C.ClientReportControlBlock) TrgOps {
 }
 
 func (c *Client) SetRCBValues(objectReference string, settings ClientReportControlBlock) error {
+	// NOTE: This combined write is convenient but may lead to IED_ERROR_TEMPORARILY_UNAVAILABLE
+	// on Buffered RCBs when enabling and configuring in a single call. Prefer the granular
+	// setters (SetRptEna/SetTrgOps/SetDataSetReference) with correct ordering for BRCB.
 	var clientError C.IedClientError
 	cObjectRef := C.CString(objectReference)
 	defer C.free(unsafe.Pointer(cObjectRef))
@@ -163,6 +188,65 @@ func (c *Client) SetRCBValues(objectReference string, settings ClientReportContr
 		return err
 	}
 	return nil
+}
+
+// SetRptEna writes only the RptEna flag of an RCB (enable/disable reporting).
+func (c *Client) SetRptEna(objectReference string, enable bool) error {
+	var clientError C.IedClientError
+	cObjectRef := C.CString(objectReference)
+	defer C.free(unsafe.Pointer(cObjectRef))
+	rcb := C.ClientReportControlBlock_create(cObjectRef)
+	defer C.ClientReportControlBlock_destroy(rcb)
+	C.ClientReportControlBlock_setRptEna(rcb, C.bool(enable))
+	C.IedConnection_setRCBValues(c.conn, &clientError, rcb, C.RCB_ELEMENT_RPT_ENA, true)
+	return GetIedClientError(clientError)
+}
+
+// SetTrgOps writes only the trigger options of an RCB.
+func (c *Client) SetTrgOps(objectReference string, ops TrgOps) error {
+	var clientError C.IedClientError
+	cObjectRef := C.CString(objectReference)
+	defer C.free(unsafe.Pointer(cObjectRef))
+	rcb := C.ClientReportControlBlock_create(cObjectRef)
+	defer C.ClientReportControlBlock_destroy(rcb)
+	var trgOps C.int
+	if ops.DataChange {
+		trgOps = trgOps | C.TRG_OPT_DATA_CHANGED
+	}
+	if ops.QualityChange {
+		trgOps = trgOps | C.TRG_OPT_QUALITY_CHANGED
+	}
+	if ops.DataUpdate {
+		trgOps = trgOps | C.TRG_OPT_DATA_UPDATE
+	}
+	if ops.TriggeredPeriodically {
+		trgOps = trgOps | C.TRG_OPT_INTEGRITY
+	}
+	if ops.Gi {
+		trgOps = trgOps | C.TRG_OPT_GI
+	}
+	if ops.Transient {
+		trgOps = trgOps | C.TRG_OPT_TRANSIENT
+	}
+	C.ClientReportControlBlock_setTrgOps(rcb, trgOps)
+	C.IedConnection_setRCBValues(c.conn, &clientError, rcb, C.RCB_ELEMENT_TRG_OPS, true)
+	return GetIedClientError(clientError)
+}
+
+// SetDataSetReference writes only the dataset reference (DatSet) of an RCB.
+// When writing from the client, pass the fully-qualified MMS object reference including the IED name,
+// e.g. "IEDLD0/LLN0$FileEvts".
+func (c *Client) SetDataSetReference(objectReference string, dataSetRef string) error {
+	var clientError C.IedClientError
+	cObjectRef := C.CString(objectReference)
+	defer C.free(unsafe.Pointer(cObjectRef))
+	cDs := C.CString(dataSetRef)
+	defer C.free(unsafe.Pointer(cDs))
+	rcb := C.ClientReportControlBlock_create(cObjectRef)
+	defer C.ClientReportControlBlock_destroy(rcb)
+	C.ClientReportControlBlock_setDataSetReference(rcb, cDs)
+	C.IedConnection_setRCBValues(c.conn, &clientError, rcb, C.RCB_ELEMENT_DATSET, true)
+	return GetIedClientError(clientError)
 }
 
 func IsBitSet(val int, pos int) bool {

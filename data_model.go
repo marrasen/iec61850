@@ -26,8 +26,9 @@ type BRReport struct {
 }
 
 type DS struct {
-	Data   string
-	DSRefs []DSRef
+	Data        string
+	DSRefs      []DSRef
+	IsDeletable bool
 }
 
 type DSRef struct {

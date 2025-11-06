@@ -2,6 +2,8 @@ package iec61850
 
 /*
 #include <iec61850_server.h>
+#include <iec61850_dynamic_model.h>
+#include <stdlib.h>
 
 typedef struct {
     uint8_t* buf;
@@ -13,6 +15,9 @@ extern MmsDataAccessError writeAccessHandlerBridge(DataAttribute* dataAttribute,
 extern ControlHandlerResult controlHandlerBridge(ControlAction action, void* parameter, MmsValue* ctlVal, bool test);
 
 extern bool acseAuthenticatorBridge(void* parameter, AcseAuthenticationParameter authParameter, void** securityToken, IsoApplicationReference* appReference);
+
+extern void connectionIndicationBridge(IedServer self, ClientConnection connection, bool connected, void* parameter);
+extern void rcbEventHandlerBridge(void* parameter, ReportControlBlock* rcb, ClientConnection connection, IedServer_RCBEventType event, char* parameterName, MmsDataAccessError serviceError);
 
 static Buffer AcseAuthenticationParameter_GetBuffer(AcseAuthenticationParameter authParameter) {
     if (authParameter->mechanism == ACSE_AUTH_PASSWORD) {
@@ -77,6 +82,50 @@ type WriteAccessHandler func(node *ModelNode, mmsValue *MmsValue) MmsDataAccessE
 type ControlHandler func(node *ModelNode, action *ControlAction, mmsValue *MmsValue, test bool) ControlHandlerResult
 
 type ClientAuthenticator func(securityToken *unsafe.Pointer, authParameter *AcseAuthenticationParameter, appReference *IsoApplicationReference) bool
+
+// ConnectionIndicationHandler is invoked when a client connection is opened or closed.
+type ConnectionIndicationHandler func(server *IedServer, connected bool)
+
+// RCBEventType maps to libiec61850 IedServer_RCBEventType
+type RCBEventType int
+
+const (
+	RCB_EVENT_GET_PARAMETER RCBEventType = iota
+	RCB_EVENT_SET_PARAMETER
+	RCB_EVENT_UNRESERVED
+	RCB_EVENT_RESERVED
+	RCB_EVENT_ENABLE
+	RCB_EVENT_DISABLE
+	RCB_EVENT_GI
+	RCB_EVENT_PURGEBUF
+	RCB_EVENT_OVERFLOW
+	RCB_EVENT_REPORT_CREATED
+)
+
+type ReportControlBlock struct {
+	rcb *C.ReportControlBlock
+}
+
+// GetName returns the RCB name. The returned pointer is owned by libiec61850 and must NOT be freed.
+func (r *ReportControlBlock) GetName() string {
+	cStr := C.ReportControlBlock_getName(r.rcb)
+	return C.GoString(cStr)
+}
+
+// GetRptID returns the RCB RptID as string.
+func (r *ReportControlBlock) GetRptID() string {
+	cStr := C.ReportControlBlock_getRptID(r.rcb)
+	return C.GoString(cStr)
+}
+
+// GetDataSet returns the dataset reference of the RCB as string.
+func (r *ReportControlBlock) GetDataSet() string {
+	cStr := C.ReportControlBlock_getDataSet(r.rcb)
+	return C.GoString(cStr)
+}
+
+// RCBEventHandler is invoked when an RCB event occurs.
+type RCBEventHandler func(rcb *ReportControlBlock, event RCBEventType, parameterName string, serviceError MmsDataAccessError)
 
 //export writeAccessHandlerBridge
 func writeAccessHandlerBridge(dataAttribute *C.DataAttribute, value *C.MmsValue, connection C.ClientConnection, parameter unsafe.Pointer) C.MmsDataAccessError {
@@ -212,4 +261,39 @@ func (is *IedServer) SetAuthenticator(clientAuthenticator ClientAuthenticator) {
 	is.clientAuthenticator = clientAuthenticator
 	cPtr := unsafe.Pointer(is)
 	C.IedServer_setAuthenticator(is.server, (*[0]byte)(C.acseAuthenticatorBridge), cPtr)
+}
+
+//export connectionIndicationBridge
+func connectionIndicationBridge(self C.IedServer, connection C.ClientConnection, connected C.bool, parameter unsafe.Pointer) {
+	is := (*IedServer)(parameter)
+	if is != nil && is.connectionIndicationHandler != nil {
+		is.connectionIndicationHandler(is, bool(connected))
+	}
+}
+
+// SetConnectionIndicationHandler registers a callback for client connection open/close events.
+func (is *IedServer) SetConnectionIndicationHandler(handler ConnectionIndicationHandler) {
+	is.connectionIndicationHandler = handler
+	cPtr := unsafe.Pointer(is)
+	C.IedServer_setConnectionIndicationHandler(is.server, (*[0]byte)(C.connectionIndicationBridge), cPtr)
+}
+
+//export rcbEventHandlerBridge
+func rcbEventHandlerBridge(parameter unsafe.Pointer, rcb *C.ReportControlBlock, connection C.ClientConnection, event C.IedServer_RCBEventType, parameterName *C.char, serviceError C.MmsDataAccessError) {
+	is := (*IedServer)(parameter)
+	if is != nil && is.rcbEventHandler != nil {
+		var paramName string
+		if parameterName != nil {
+			paramName = C.GoString(parameterName)
+		}
+		wrap := &ReportControlBlock{rcb: rcb}
+		is.rcbEventHandler(wrap, RCBEventType(event), paramName, MmsDataAccessError(serviceError))
+	}
+}
+
+// SetRCBEventHandler registers a callback for server-side RCB events.
+func (is *IedServer) SetRCBEventHandler(handler RCBEventHandler) {
+	is.rcbEventHandler = handler
+	cPtr := unsafe.Pointer(is)
+	C.IedServer_setRCBEventHandler(is.server, (*[0]byte)(C.rcbEventHandlerBridge), cPtr)
 }

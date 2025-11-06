@@ -8,10 +8,12 @@ import (
 )
 
 type IedServer struct {
-	server              C.IedServer
-	serverConfig        ServerConfig
-	tlsConfig           C.TLSConfiguration
-	clientAuthenticator ClientAuthenticator
+	server                      C.IedServer
+	serverConfig                ServerConfig
+	tlsConfig                   C.TLSConfiguration
+	clientAuthenticator         ClientAuthenticator
+	connectionIndicationHandler ConnectionIndicationHandler
+	rcbEventHandler             RCBEventHandler
 }
 
 func NewServerWithTlsSupport(serverConfig ServerConfig, tlsConfig *TLSConfig, iedModel *IedModel) (*IedServer, error) {
@@ -43,6 +45,11 @@ func NewServer(iedModel *IedModel) *IedServer {
 	return &IedServer{
 		server: C.IedServer_create(iedModel.Model),
 	}
+}
+
+// SetWriteAccessPolicy changes the default write access policy for a given Functional Constraint (FC).
+func (is *IedServer) SetWriteAccessPolicy(fc FC, policy AccessPolicy) {
+	C.IedServer_setWriteAccessPolicy(is.server, C.FunctionalConstraint(fc), C.AccessPolicy(policy))
 }
 
 // Start initiates the IedServer on the provided port.

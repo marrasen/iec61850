@@ -55,6 +55,16 @@ const (
 	DATA_ACCESS_ERROR_UNKNOWN                       MmsDataAccessError = 12
 )
 
+// AccessPolicy maps to libiec61850 AccessPolicy
+// ACCESS_POLICY_ALLOW allows writes, ACCESS_POLICY_DENY denies writes for given FC
+// Values must match the C enum ordering.
+type AccessPolicy int
+
+const (
+	ACCESS_POLICY_ALLOW AccessPolicy = iota
+	ACCESS_POLICY_DENY
+)
+
 type ControlHandlerResult int
 
 const (

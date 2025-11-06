@@ -1,9 +1,11 @@
 package iec61850
 
 /*
+#include <stdio.h>
 #include <iec61850_client.h>
 
 extern void reportCallbackFunctionBridge(void* parameter, ClientReport report);
+extern void reportCallbackLogging(void* parameter, ClientReport report);
 */
 import "C"
 import (
@@ -156,17 +158,11 @@ func (clientReport *ClientReport) GetMoreSeqmentsFollow() bool {
 	return bool(C.ClientReport_getMoreSeqmentsFollow(clientReport.Report))
 }
 
-func (c *Client) InstallReportHandler(objectReference string, function ReportCallbackFunction) error {
-	var clientError C.IedClientError
-
+func (c *Client) InstallReportHandler(objectReference string, rptId string, function ReportCallbackFunction) error {
 	cObjectRef := C.CString(objectReference)
 	defer C.free(unsafe.Pointer(cObjectRef))
-
-	rcb := C.IedConnection_getRCBValues(c.conn, &clientError, cObjectRef, nil)
-	if err := GetIedClientError(clientError); err != nil {
-		return err
-	}
-	defer C.ClientReportControlBlock_destroy(rcb)
+	cRptId := C.CString(rptId)
+	defer C.free(unsafe.Pointer(cRptId))
 
 	callbackId := callbackIdGen.Add(1)
 	cPtr := intToPointerBug58625(callbackId)
@@ -174,7 +170,7 @@ func (c *Client) InstallReportHandler(objectReference string, function ReportCal
 		handler: function,
 	}
 
-	C.IedConnection_installReportHandler(c.conn, cObjectRef, C.ClientReportControlBlock_getRptId(rcb), (*[0]byte)(C.reportCallbackFunctionBridge), cPtr)
+	C.IedConnection_installReportHandler(c.conn, cObjectRef, cRptId, (*[0]byte)(C.reportCallbackFunctionBridge), cPtr)
 
 	return nil
 }
