@@ -1,9 +1,10 @@
 package test
 
 import (
-	"github.com/marrasen/iec61850"
 	"testing"
 	"time"
+
+	"github.com/marrasen/iec61850"
 )
 
 func CreateClient(t *testing.T) *iec61850.Client {

@@ -42,7 +42,11 @@ var (
 
 func GetIedClientError(err C.IedClientError) error {
 	cError := C.IedClientError(err)
-	switch cError {
+	return GetIedErrorFromErrorCode(int32(cError))
+}
+
+func GetIedErrorFromErrorCode(err int32) error {
+	switch err {
 	case C.IED_ERROR_OK:
 		return nil
 	case C.IED_ERROR_NOT_CONNECTED:

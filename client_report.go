@@ -50,6 +50,10 @@ func (reason ReasonForInclusion) GetValueAsString() string {
 	return C.GoString(C.ReasonForInclusion_getValueAsString(C.ReasonForInclusion(reason)))
 }
 
+func (reason ReasonForInclusion) String() string {
+	return reason.GetValueAsString()
+}
+
 func (clientReport *ClientReport) GetElement(elementIndex int) (MmsValue, error) {
 	dataSetValues := C.ClientReport_getDataSetValues(clientReport.Report)
 	cMmsValue := C.MmsValue_getElement(dataSetValues, C.int(elementIndex))

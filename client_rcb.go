@@ -233,6 +233,45 @@ func (c *Client) SetTrgOps(objectReference string, ops TrgOps) error {
 	return GetIedClientError(clientError)
 }
 
+// SetBufTm writes only the BufTm (buffer time in ms) of an RCB.
+func (c *Client) SetBufTm(objectReference string, bufTm uint32) error {
+	var clientError C.IedClientError
+	cObjectRef := C.CString(objectReference)
+	defer C.free(unsafe.Pointer(cObjectRef))
+	rcb := C.ClientReportControlBlock_create(cObjectRef)
+	defer C.ClientReportControlBlock_destroy(rcb)
+	C.ClientReportControlBlock_setBufTm(rcb, C.uint32_t(bufTm))
+	C.IedConnection_setRCBValues(c.conn, &clientError, rcb, C.RCB_ELEMENT_BUF_TM, true)
+	return GetIedClientError(clientError)
+}
+
+// SetIntgPd writes only the IntgPd (integrity period in ms) of an RCB.
+func (c *Client) SetIntgPd(objectReference string, intgPd uint32) error {
+	var clientError C.IedClientError
+	cObjectRef := C.CString(objectReference)
+	defer C.free(unsafe.Pointer(cObjectRef))
+	rcb := C.ClientReportControlBlock_create(cObjectRef)
+	defer C.ClientReportControlBlock_destroy(rcb)
+	C.ClientReportControlBlock_setIntgPd(rcb, C.uint32_t(intgPd))
+	C.IedConnection_setRCBValues(c.conn, &clientError, rcb, C.RCB_ELEMENT_INTG_PD, true)
+	return GetIedClientError(clientError)
+}
+
+// SetGI sets the GI flag of an RCB (whether a GI is created on enable).
+func (c *Client) SetGI(objectReference string, gi bool) error {
+	var clientError C.IedClientError
+	cObjectRef := C.CString(objectReference)
+	defer C.free(unsafe.Pointer(cObjectRef))
+	rcb := C.ClientReportControlBlock_create(cObjectRef)
+	defer C.ClientReportControlBlock_destroy(rcb)
+	C.ClientReportControlBlock_setGI(rcb, C.bool(gi))
+	C.IedConnection_setRCBValues(c.conn, &clientError, rcb, C.RCB_ELEMENT_GI, true)
+	return GetIedClientError(clientError)
+}
+
+// Note: Buffered vs Unbuffered is determined by selecting the appropriate RCB object (BRCB/URCB)
+// in the server model. There is no client-side API to toggle this property.
+
 // SetDataSetReference writes only the dataset reference (DatSet) of an RCB.
 // When writing from the client, pass the fully-qualified MMS object reference including the IED name,
 // e.g. "IEDLD0/LLN0$FileEvts".

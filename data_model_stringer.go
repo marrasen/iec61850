@@ -125,7 +125,7 @@ func (da DA) String() string {
 }
 
 func (da DA) writeTo(b *strings.Builder, level int) {
-	b.WriteString(indent(level) + "DA: " + da.Data + "\n")
+	b.WriteString(indent(level) + "DA: " + da.Data + " Ref: " + da.Ref + "\n")
 	for _, child := range da.DAs {
 		child.writeTo(b, level+1)
 	}

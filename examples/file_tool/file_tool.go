@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -59,7 +60,7 @@ func run() error {
 		RequestTimeout: 10000,
 	})
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer client.Close()
 

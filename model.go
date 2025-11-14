@@ -1,6 +1,7 @@
 package iec61850
 
 // #include <iec61850_server.h>
+// #include <iec61850_dynamic_model.h>
 import "C"
 
 import (
@@ -156,6 +157,12 @@ func (do *DataObject) GetChild(name string) *DataAttribute {
 	return &DataAttribute{
 		attribute: (*C.DataAttribute)(unsafe.Pointer(C.ModelNode_getChild((*C.ModelNode)(unsafe.Pointer(do.object)), cname))),
 	}
+}
+
+// GetFC returns the functional constraint (FC) of the data attribute.
+func (da *DataAttribute) GetFC() FC {
+	fc := C.DataAttribute_getFC(da.attribute)
+	return FC(fc)
 }
 
 type DataSet struct {

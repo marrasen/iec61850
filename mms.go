@@ -72,6 +72,9 @@ func toMmsValue(mmsType MmsType, value interface{}) (*C.MmsValue, error) {
 }
 
 func toGoValue(mmsValue *C.MmsValue, mmsType MmsType) (interface{}, error) {
+	if mmsValue == nil {
+		return nil, fmt.Errorf("mms value is nil")
+	}
 	var (
 		value interface{}
 		err   error

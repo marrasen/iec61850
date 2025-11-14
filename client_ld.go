@@ -4,6 +4,7 @@ package iec61850
 import "C"
 import (
 	"fmt"
+	"log"
 	"unsafe"
 )
 
@@ -38,10 +39,7 @@ func (c *Client) GetLogicalDeviceList() DataModel {
 					dataObject = dataObject.next
 					doRef := fmt.Sprintf("%s/%s.%s", C2GoStr((*C.char)(device.data)), C2GoStr((*C.char)(logicalNode.data)), do.Data)
 
-					var das []DA
-					c.GetDAs(doRef, das)
-
-					do.DAs = das
+					do.DAs = c.GetDAs(doRef)
 					ln.DOs = append(ln.DOs, do)
 				}
 				C.LinkedList_destroy(dataObjects)
@@ -123,27 +121,36 @@ func (c *Client) GetLogicalDeviceList() DataModel {
 	return dataModel
 }
 
-func (c *Client) GetDAs(doRef string, das []DA) {
+func (c *Client) GetDAs(doRef string) []DA {
 
 	var clientError C.IedClientError
 
 	cdoRef := Go2CStr(doRef)
 	defer C.free(unsafe.Pointer(cdoRef))
 
-	dataAttributes := C.IedConnection_getDataDirectory(c.conn, &clientError, cdoRef)
+	dataAttributes := C.IedConnection_getDataDirectoryFC(c.conn, &clientError, cdoRef)
 	defer C.LinkedList_destroy(dataAttributes)
+
+	if err := GetIedClientError(clientError); err != nil {
+		log.Print("Failed to get data attributes for ref: ", doRef, ". Error: ", err)
+	}
+
+	var das []DA
+
 	if dataAttributes != nil {
 		dataAttribute := dataAttributes.next
 
 		for dataAttribute != nil {
 			var da DA
 			da.Data = C2GoStr((*C.char)(dataAttribute.data))
-			das = append(das, da)
 
 			dataAttribute = dataAttribute.next
-			daRef := fmt.Sprintf("%s.%s", doRef, da.Data)
-			c.GetDAs(daRef, das)
+			da.Ref = fmt.Sprintf("%s.%s", doRef, da.Data)
+			da.DAs = c.GetDAs(da.Ref)
+
+			das = append(das, da)
 		}
 	}
 
+	return das
 }
