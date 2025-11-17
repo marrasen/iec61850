@@ -85,6 +85,7 @@ func (c *Client) GetLogicalDeviceList() DataModel {
 				for report != nil {
 					var r URReport
 					r.Data = C2GoStr((*C.char)(report.data))
+					r.Ref = fmt.Sprintf("%s.%s", lnRef, r.Data)
 					ln.URReports = append(ln.URReports, r)
 
 					report = report.next
@@ -99,6 +100,7 @@ func (c *Client) GetLogicalDeviceList() DataModel {
 				for report != nil {
 					var r BRReport
 					r.Data = C2GoStr((*C.char)(report.data))
+					r.Ref = fmt.Sprintf("%s.%s", lnRef, r.Data)
 					ln.BRReports = append(ln.BRReports, r)
 
 					report = report.next
@@ -153,4 +155,33 @@ func (c *Client) GetDAs(doRef string) []DA {
 	}
 
 	return das
+}
+
+// ListBRCBsForLN returns the list of Buffered Report Control Block (BRCB) names
+// for the given logical device (ld) and logical node (ln). It returns only the
+// RCB names (e.g. "BR01"), not the full object reference.
+func (c *Client) ListBRCBsForLN(ld string, ln string) ([]string, error) {
+	var clientError C.IedClientError
+
+	lnRef := fmt.Sprintf("%s/%s", ld, ln)
+	clnRef := Go2CStr(lnRef)
+	defer C.free(unsafe.Pointer(clnRef))
+
+	list := C.IedConnection_getLogicalNodeDirectory(c.conn, &clientError, clnRef, C.ACSI_CLASS_BRCB)
+	if err := GetIedClientError(clientError); err != nil {
+		if list != nil {
+			C.LinkedList_destroy(list)
+		}
+		return nil, err
+	}
+	var out []string
+	if list != nil {
+		it := list.next
+		for it != nil {
+			out = append(out, C2GoStr((*C.char)(it.data)))
+			it = it.next
+		}
+		C.LinkedList_destroy(list)
+	}
+	return out, nil
 }

@@ -19,10 +19,12 @@ type LN struct {
 
 type URReport struct {
 	Data string
+	Ref  string
 }
 
 type BRReport struct {
 	Data string
+	Ref  string
 }
 
 type DS struct {

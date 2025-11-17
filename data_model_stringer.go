@@ -64,7 +64,7 @@ func (r URReport) String() string {
 }
 
 func (r URReport) writeTo(b *strings.Builder, level int) {
-	b.WriteString(indent(level) + "URReport: " + r.Data + "\n")
+	b.WriteString(indent(level) + "URReport: " + r.Data + " Ref: " + r.Ref + "\n")
 }
 
 func (r BRReport) String() string {
@@ -74,7 +74,7 @@ func (r BRReport) String() string {
 }
 
 func (r BRReport) writeTo(b *strings.Builder, level int) {
-	b.WriteString(indent(level) + "BRReport: " + r.Data + "\n")
+	b.WriteString(indent(level) + "BRReport: " + r.Data + " Ref: " + r.Ref + "\n")
 }
 
 func (ds DS) String() string {

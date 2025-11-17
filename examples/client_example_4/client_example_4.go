@@ -144,7 +144,7 @@ func run() error {
 	// Defaults: adjust to your IED
 	flag.StringVar(&host, "h", "192.0.2.10", "Host name or IP address")
 	flag.IntVar(&port, "p", 102, "TCP port")
-	flag.StringVar(&brcbRef, "rcb", "T11DR/LLN0.BR01", "RCB reference (e.g. T11DR/LLN0.BR01)")
+	flag.StringVar(&brcbRef, "rcb", "T11DR/RDRE1.BR01", "RCB reference (e.g. T11DR/LLN0.BR01)")
 	flag.StringVar(&datasetRef, "ds", "T11DR/LLN0.StatDR", "DataSet reference (e.g. T11DR/LLN0.StatDR)")
 	flag.Parse()
 

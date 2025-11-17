@@ -11,30 +11,30 @@ import (
 )
 
 type TrgOps struct {
-	DataChange            bool // 值变化
-	QualityChange         bool // 品质变化
-	DataUpdate            bool // 数据修改
-	TriggeredPeriodically bool // 周期触发
-	Gi                    bool // GI(一般审问)请求触发
-	Transient             bool // 瞬变
+	DataChange            bool // Value change
+	QualityChange         bool // Quality change
+	DataUpdate            bool // Data update
+	TriggeredPeriodically bool // Periodic trigger (integrity)
+	Gi                    bool // GI (general interrogation) trigger
+	Transient             bool // Transient
 }
 type OptFlds struct {
-	SequenceNumber     bool // 顺序号
-	TimeOfEntry        bool // 报告时标
-	ReasonForInclusion bool // 原因码
-	DataSetName        bool // 数据集
-	DataReference      bool // 数据引用
-	BufferOverflow     bool // 缓存溢出标识
-	EntryID            bool // 报告标识符
-	ConfigRevision     bool // 配置版本号
+	SequenceNumber     bool // Sequence number
+	TimeOfEntry        bool // Report timestamp
+	ReasonForInclusion bool // Reason code (reason for inclusion)
+	DataSetName        bool // Data set
+	DataReference      bool // Data reference
+	BufferOverflow     bool // Buffer overflow indicator
+	EntryID            bool // Report entry identifier
+	ConfigRevision     bool // Configuration revision
 }
 
 type ClientReportControlBlock struct {
-	Ena     bool    // 使能
-	IntgPd  int     // 周期上送时间
+	Ena     bool    // Enable
+	IntgPd  int     // Integrity period (ms)
 	Resv    bool    // Reservation for URCB
-	TrgOps  TrgOps  // 触发条件
-	OptFlds OptFlds // 报告选项
+	TrgOps  TrgOps  // Trigger options
+	OptFlds OptFlds // Report options
 	RptId   string  // RCB report ID
 	DatSet  string  // Data set reference
 	Owner   string  // Current owner (IP:port) if enabled
@@ -172,10 +172,10 @@ func (c *Client) SetRCBValues(objectReference string, settings ClientReportContr
 		optFlds = optFlds | C.RPT_OPT_CONF_REV
 	}
 
-	C.ClientReportControlBlock_setTrgOps(rcb, trgOps)               // 触发条件
-	C.ClientReportControlBlock_setRptEna(rcb, C.bool(settings.Ena)) // 报告使能
+	C.ClientReportControlBlock_setTrgOps(rcb, trgOps)               // Trigger options
+	C.ClientReportControlBlock_setRptEna(rcb, C.bool(settings.Ena)) // Report enable
 	C.ClientReportControlBlock_setResv(rcb, C.bool(settings.Resv))
-	C.ClientReportControlBlock_setIntgPd(rcb, C.uint32_t(settings.IntgPd)) // 周期上送时间
+	C.ClientReportControlBlock_setIntgPd(rcb, C.uint32_t(settings.IntgPd)) // Integrity period (ms)
 	C.ClientReportControlBlock_setOptFlds(rcb, optFlds)
 
 	if bool(C.ClientReportControlBlock_isBuffered(rcb)) {
