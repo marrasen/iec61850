@@ -342,7 +342,8 @@ func (s *StaticModelGenerator) printInitializerFunction() {
 	s.cOut.println("\nstatic void")
 	s.cOut.println("initializeValues()")
 	s.cOut.println("{")
-	s.cOut.print(s.initializerBuffer.String())
+	// Use a constant format string to satisfy go vet (no dynamic format strings)
+	s.cOut.print("%s", s.initializerBuffer.String())
 	s.cOut.println("}")
 }
 

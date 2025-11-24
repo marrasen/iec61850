@@ -3,6 +3,7 @@ package iec61850
 // #include <iec61850_client.h>
 import "C"
 import (
+	"fmt"
 	"sync/atomic"
 	"unsafe"
 )
@@ -49,7 +50,7 @@ func newClient(settings Settings, tlsConfig *TLSConfig) (*Client, error) {
 	client := &Client{}
 
 	if err := client.connect(settings, tlsConfig); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("connect to %s:%d failed: %w", settings.Host, settings.Port, err)
 	}
 
 	connected := &atomic.Bool{}
@@ -62,7 +63,7 @@ func newClient(settings Settings, tlsConfig *TLSConfig) (*Client, error) {
 func (c *Client) WriteObject(objectRef string, fc FC, value interface{}) error {
 	mmsType, err := c.GetVariableSpecType(objectRef, fc)
 	if err != nil {
-		return err
+		return fmt.Errorf("WriteObject get type %q fc=%s: %w", objectRef, fc, err)
 	}
 	var (
 		mmsValue    *C.MmsValue
@@ -71,14 +72,17 @@ func (c *Client) WriteObject(objectRef string, fc FC, value interface{}) error {
 
 	mmsValue, err = toMmsValue(mmsType, value)
 	if err != nil {
-		return err
+		return fmt.Errorf("WriteObject convert value for %q fc=%s: %w", objectRef, fc, err)
 	}
 
 	cObjectRef := C.CString(objectRef)
 	defer C.free(unsafe.Pointer(cObjectRef))
 	defer C.MmsValue_delete(mmsValue)
 	C.IedConnection_writeObject(c.conn, &clientError, cObjectRef, C.FunctionalConstraint(fc), mmsValue)
-	return GetIedClientError(clientError)
+	if err := GetIedClientError(clientError); err != nil {
+		return fmt.Errorf("WriteObject %q fc=%s: %w", objectRef, fc, err)
+	}
+	return nil
 }
 
 // ReadBoolValue reads a bool value
@@ -89,7 +93,7 @@ func (c *Client) ReadBoolValue(objectRef string, fc FC) (bool, error) {
 	var clientError C.IedClientError
 	value := C.IedConnection_readBooleanValue(c.conn, &clientError, cObjectRef, C.FunctionalConstraint(fc))
 	if err := GetIedClientError(clientError); err != nil {
-		return false, err
+		return false, fmt.Errorf("ReadBoolValue %q fc=%s: %w", objectRef, fc, err)
 	}
 	return bool(value), nil
 }
@@ -102,7 +106,7 @@ func (c *Client) ReadInt32Value(objectRef string, fc FC) (int32, error) {
 	var clientError C.IedClientError
 	value := C.IedConnection_readInt32Value(c.conn, &clientError, cObjectRef, C.FunctionalConstraint(fc))
 	if err := GetIedClientError(clientError); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("ReadInt32Value %q fc=%s: %w", objectRef, fc, err)
 	}
 	return int32(value), nil
 }
@@ -115,7 +119,7 @@ func (c *Client) ReadInt64Value(objectRef string, fc FC) (int64, error) {
 	var clientError C.IedClientError
 	value := C.IedConnection_readInt64Value(c.conn, &clientError, cObjectRef, C.FunctionalConstraint(fc))
 	if err := GetIedClientError(clientError); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("ReadInt64Value %q fc=%s: %w", objectRef, fc, err)
 	}
 	return int64(value), nil
 }
@@ -128,7 +132,7 @@ func (c *Client) ReadUint32Value(objectRef string, fc FC) (uint32, error) {
 	var clientError C.IedClientError
 	value := C.IedConnection_readUnsigned32Value(c.conn, &clientError, cObjectRef, C.FunctionalConstraint(fc))
 	if err := GetIedClientError(clientError); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("ReadUint32Value %q fc=%s: %w", objectRef, fc, err)
 	}
 	return uint32(value), nil
 }
@@ -141,7 +145,7 @@ func (c *Client) ReadFloatValue(objectRef string, fc FC) (float32, error) {
 	var clientError C.IedClientError
 	value := C.IedConnection_readFloatValue(c.conn, &clientError, cObjectRef, C.FunctionalConstraint(fc))
 	if err := GetIedClientError(clientError); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("ReadFloatValue %q fc=%s: %w", objectRef, fc, err)
 	}
 	// The source returns a C float (4 bytes), so return float32 to avoid issues
 	return float32(value), nil
@@ -155,7 +159,7 @@ func (c *Client) ReadStringValue(objectRef string, fc FC) (string, error) {
 	var clientError C.IedClientError
 	value := C.IedConnection_readStringValue(c.conn, &clientError, cObjectRef, C.FunctionalConstraint(fc))
 	if err := GetIedClientError(clientError); err != nil {
-		return "", err
+		return "", fmt.Errorf("ReadStringValue %q fc=%s: %w", objectRef, fc, err)
 	}
 	return C.GoString(value), nil
 }
@@ -168,7 +172,7 @@ func (c *Client) ReadObject(objectRef string, fc FC) (*MmsValue, error) {
 
 	mmsValue := C.IedConnection_readObject(c.conn, &clientError, cObjectRef, C.FunctionalConstraint(fc))
 	if err := GetIedClientError(clientError); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ReadObject %q fc=%s: %w", objectRef, fc, err)
 	}
 
 	defer C.MmsValue_delete(mmsValue)
@@ -176,7 +180,7 @@ func (c *Client) ReadObject(objectRef string, fc FC) (*MmsValue, error) {
 	// Convert to Go value (including recursive conversion for Structure/Array)
 	goVal, err := toGoValue(mmsValue, mmsType)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ReadObject convert %q fc=%s: %w", objectRef, fc, err)
 	}
 	retMmsValue := &MmsValue{
 		Type:  mmsType,
@@ -193,7 +197,7 @@ func (c *Client) ReadDataSetValues(objectRef string) ([]*MmsValue, error) {
 	var clientError C.IedClientError
 	dataSet := C.IedConnection_readDataSetValues(c.conn, &clientError, cObjectRef, nil)
 	if err := GetIedClientError(clientError); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ReadDataSetValues %q: %w", objectRef, err)
 	}
 	defer C.ClientDataSet_destroy(dataSet)
 
@@ -206,7 +210,7 @@ func (c *Client) ReadDataSetValues(objectRef string) ([]*MmsValue, error) {
 		mmsType := MmsType(C.MmsValue_getType(value))
 		goValue, err := toGoValue(value, mmsType)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("ReadDataSetValues convert element %d for %q: %w", i, objectRef, err)
 		}
 
 		mmsValue := &MmsValue{
@@ -246,7 +250,7 @@ func (c *Client) GetVariableSpecType(objectReference string, fc FC) (MmsType, er
 	// Get type
 	spec := C.IedConnection_getVariableSpecification(c.conn, &clientError, cObjectRef, C.FunctionalConstraint(fc))
 	if err := GetIedClientError(clientError); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("GetVariableSpecType %q fc=%s: %w", objectReference, fc, err)
 	}
 	defer C.MmsVariableSpecification_destroy(spec)
 	mmsType := MmsType(C.MmsVariableSpecification_getType(spec))
@@ -282,7 +286,11 @@ func (c *Client) getSubElementValue(sgcbVal *C.MmsValue, sgcbVarSpec *C.MmsVaria
 	defer C.free(unsafe.Pointer(mmsPath))
 	mmsValue := C.MmsValue_getSubElement(sgcbVal, sgcbVarSpec, mmsPath)
 	defer C.MmsValue_delete(mmsValue)
-	return toGoValue(mmsValue, MmsType(C.MmsValue_getType(mmsValue)))
+	v, err := toGoValue(mmsValue, MmsType(C.MmsValue_getType(mmsValue)))
+	if err != nil {
+		return nil, fmt.Errorf("getSubElementValue %q: %w", name, err)
+	}
+	return v, nil
 }
 
 // GetDeviceModelFromServer retrieves and buffers the complete device model from the server
@@ -291,7 +299,10 @@ func (c *Client) getSubElementValue(sgcbVal *C.MmsValue, sgcbVarSpec *C.MmsVaria
 func (c *Client) GetDeviceModelFromServer() error {
 	var clientError C.IedClientError
 	C.IedConnection_getDeviceModelFromServer(c.conn, &clientError)
-	return GetIedClientError(clientError)
+	if err := GetIedClientError(clientError); err != nil {
+		return fmt.Errorf("GetDeviceModelFromServer: %w", err)
+	}
+	return nil
 }
 
 // connect establishes a connection
@@ -301,7 +312,7 @@ func (c *Client) connect(settings Settings, tlsConfig *TLSConfig) error {
 	if tlsConfig != nil {
 		_tlsConfig, err := tlsConfig.createCTlsConfig()
 		if err != nil {
-			return err
+			return fmt.Errorf("create TLS configuration: %w", err)
 		}
 
 		c.tlsConfig = _tlsConfig
@@ -323,7 +334,7 @@ func (c *Client) connect(settings Settings, tlsConfig *TLSConfig) error {
 		if c.tlsConfig != nil {
 			C.TLSConfiguration_destroy(c.tlsConfig)
 		}
-		return err
+		return fmt.Errorf("IedConnection_connect to %s:%d: %w", settings.Host, settings.Port, err)
 	}
 
 	c.conn = conn

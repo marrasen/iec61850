@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// GetVariableValues is an example of how to read variable structure and values from an IED
 func (c *Client) GetVariableValues() ([]VariableTypeValue, error) {
 	log.Printf("Loading data model")
 	if err := c.GetDeviceModelFromServer(); err != nil {

@@ -316,7 +316,7 @@ func (c *Client) GetVariableTypeValues(objectRef string, fc FC) ([]VariableTypeV
 	}
 
 	if err := walk(spec, val, objectRef, startName); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetVariableTypeValues %q: %w", objectRef, err)
 	}
 	return out, nil
 }

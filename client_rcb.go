@@ -7,6 +7,7 @@ import "C"
 
 import (
 	"encoding/hex"
+	"fmt"
 	"unsafe"
 )
 
@@ -46,7 +47,10 @@ func (c *Client) GetRCBValues(objectReference string) (*ClientReportControlBlock
 	defer C.free(unsafe.Pointer(cObjectRef))
 	rcb := C.IedConnection_getRCBValues(c.conn, &clientError, cObjectRef, nil)
 	if rcb == nil {
-		return nil, GetIedClientError(clientError)
+		if err := GetIedClientError(clientError); err != nil {
+			return nil, fmt.Errorf("GetRCBValues %q: %w", objectReference, err)
+		}
+		return nil, fmt.Errorf("GetRCBValues %q: unexpected nil RCB without error", objectReference)
 	}
 	defer C.ClientReportControlBlock_destroy(rcb)
 	// Convert Owner from MMS octet string to a hex string (may contain binary data)
@@ -185,7 +189,7 @@ func (c *Client) SetRCBValues(objectReference string, settings ClientReportContr
 	}
 
 	if err := GetIedClientError(clientError); err != nil {
-		return err
+		return fmt.Errorf("SetRCBValues %q: %w", objectReference, err)
 	}
 	return nil
 }
@@ -199,7 +203,10 @@ func (c *Client) SetRptEna(objectReference string, enable bool) error {
 	defer C.ClientReportControlBlock_destroy(rcb)
 	C.ClientReportControlBlock_setRptEna(rcb, C.bool(enable))
 	C.IedConnection_setRCBValues(c.conn, &clientError, rcb, C.RCB_ELEMENT_RPT_ENA, true)
-	return GetIedClientError(clientError)
+	if err := GetIedClientError(clientError); err != nil {
+		return fmt.Errorf("SetRptEna %q enable=%t: %w", objectReference, enable, err)
+	}
+	return nil
 }
 
 // SetTrgOps writes only the trigger options of an RCB.
@@ -230,7 +237,10 @@ func (c *Client) SetTrgOps(objectReference string, ops TrgOps) error {
 	}
 	C.ClientReportControlBlock_setTrgOps(rcb, trgOps)
 	C.IedConnection_setRCBValues(c.conn, &clientError, rcb, C.RCB_ELEMENT_TRG_OPS, true)
-	return GetIedClientError(clientError)
+	if err := GetIedClientError(clientError); err != nil {
+		return fmt.Errorf("SetTrgOps %q: %w", objectReference, err)
+	}
+	return nil
 }
 
 // SetBufTm writes only the BufTm (buffer time in ms) of an RCB.
@@ -242,7 +252,10 @@ func (c *Client) SetBufTm(objectReference string, bufTm uint32) error {
 	defer C.ClientReportControlBlock_destroy(rcb)
 	C.ClientReportControlBlock_setBufTm(rcb, C.uint32_t(bufTm))
 	C.IedConnection_setRCBValues(c.conn, &clientError, rcb, C.RCB_ELEMENT_BUF_TM, true)
-	return GetIedClientError(clientError)
+	if err := GetIedClientError(clientError); err != nil {
+		return fmt.Errorf("SetBufTm %q bufTm=%d: %w", objectReference, bufTm, err)
+	}
+	return nil
 }
 
 // SetIntgPd writes only the IntgPd (integrity period in ms) of an RCB.
@@ -254,7 +267,10 @@ func (c *Client) SetIntgPd(objectReference string, intgPd uint32) error {
 	defer C.ClientReportControlBlock_destroy(rcb)
 	C.ClientReportControlBlock_setIntgPd(rcb, C.uint32_t(intgPd))
 	C.IedConnection_setRCBValues(c.conn, &clientError, rcb, C.RCB_ELEMENT_INTG_PD, true)
-	return GetIedClientError(clientError)
+	if err := GetIedClientError(clientError); err != nil {
+		return fmt.Errorf("SetIntgPd %q intgPd=%d: %w", objectReference, intgPd, err)
+	}
+	return nil
 }
 
 // SetGI sets the GI flag of an RCB (whether a GI is created on enable).
@@ -266,7 +282,10 @@ func (c *Client) SetGI(objectReference string, gi bool) error {
 	defer C.ClientReportControlBlock_destroy(rcb)
 	C.ClientReportControlBlock_setGI(rcb, C.bool(gi))
 	C.IedConnection_setRCBValues(c.conn, &clientError, rcb, C.RCB_ELEMENT_GI, true)
-	return GetIedClientError(clientError)
+	if err := GetIedClientError(clientError); err != nil {
+		return fmt.Errorf("SetGI %q gi=%t: %w", objectReference, gi, err)
+	}
+	return nil
 }
 
 // Note: Buffered vs Unbuffered is determined by selecting the appropriate RCB object (BRCB/URCB)
@@ -285,7 +304,10 @@ func (c *Client) SetDataSetReference(objectReference string, dataSetRef string) 
 	defer C.ClientReportControlBlock_destroy(rcb)
 	C.ClientReportControlBlock_setDataSetReference(rcb, cDs)
 	C.IedConnection_setRCBValues(c.conn, &clientError, rcb, C.RCB_ELEMENT_DATSET, true)
-	return GetIedClientError(clientError)
+	if err := GetIedClientError(clientError); err != nil {
+		return fmt.Errorf("SetDataSetReference %q ds=%q: %w", objectReference, dataSetRef, err)
+	}
+	return nil
 }
 
 func IsBitSet(val int, pos int) bool {

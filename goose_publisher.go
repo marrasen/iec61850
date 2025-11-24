@@ -17,6 +17,7 @@ static void destroy_linked_list_val(LinkedList value) {
 import "C"
 import (
 	"errors"
+	"fmt"
 	"unsafe"
 )
 
@@ -134,7 +135,7 @@ func NewLinkedListValue() *LinkedListValue {
 func (receiver *LinkedListValue) Add(value *MmsValue) error {
 	rawVal, err := toMmsValue(value.Type, value.Value)
 	if err != nil {
-		return err
+		return fmt.Errorf("LinkedListValue.Add convert type=%v: %w", value.Type, err)
 	}
 	C.LinkedList_add(receiver.internalLinkedList, unsafe.Pointer(rawVal))
 

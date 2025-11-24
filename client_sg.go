@@ -25,22 +25,22 @@ type SettingGroup struct {
 func (c *Client) WriteSG(ld, ln, objectRef string, fc FC, actSG int, value interface{}) error {
 	// Set active setting group
 	if err := c.WriteObject(fmt.Sprintf(ActDA, ld, ln), SP, actSG); err != nil {
-		return err
+		return fmt.Errorf("WriteSG set ActSG ld=%s ln=%s actSG=%d: %w", ld, ln, actSG, err)
 	}
 
 	// Set edit setting group
 	if err := c.WriteObject(fmt.Sprintf(EditDA, ld, ln), SP, actSG); err != nil {
-		return err
+		return fmt.Errorf("WriteSG set EditSG ld=%s ln=%s actSG=%d: %w", ld, ln, actSG, err)
 	}
 
 	// Change a setting group value
 	if err := c.WriteObject(objectRef, fc, value); err != nil {
-		return err
+		return fmt.Errorf("WriteSG write value %q fc=%s: %w", objectRef, fc, err)
 	}
 
 	// Confirm new setting group values
 	if err := c.WriteObject(fmt.Sprintf(CnfDA, ld, ln), SP, true); err != nil {
-		return err
+		return fmt.Errorf("WriteSG confirm CnfEdit ld=%s ln=%s: %w", ld, ln, err)
 	}
 	return nil
 }
@@ -54,35 +54,35 @@ func (c *Client) GetSG(objectRef string) (*SettingGroup, error) {
 	// 获取类型
 	sgcbVarSpec := C.IedConnection_getVariableSpecification(c.conn, &clientError, cObjectRef, C.FunctionalConstraint(SP))
 	if err := GetIedClientError(clientError); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetSG get var spec %q: %w", objectRef, err)
 	}
 	defer C.MmsVariableSpecification_destroy(sgcbVarSpec)
 
 	// ReadObject SGCB
 	sgcbVal := C.IedConnection_readObject(c.conn, &clientError, cObjectRef, C.FunctionalConstraint(SP))
 	if err := GetIedClientError(clientError); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetSG read object %q: %w", objectRef, err)
 	}
 	//defer C.MmsValue_delete(sgcbVal)
 
 	numOfSGValue, err := c.getSubElementValue(sgcbVal, sgcbVarSpec, "NumOfSG")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetSG read NumOfSG from %q: %w", objectRef, err)
 	}
 
 	actSGValue, err := c.getSubElementValue(sgcbVal, sgcbVarSpec, "ActSG")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetSG read ActSG from %q: %w", objectRef, err)
 	}
 
 	editSGValue, err := c.getSubElementValue(sgcbVal, sgcbVarSpec, "EditSG")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetSG read EditSG from %q: %w", objectRef, err)
 	}
 
 	cnfEditValue, err := c.getSubElementValue(sgcbVal, sgcbVarSpec, "CnfEdit")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetSG read CnfEdit from %q: %w", objectRef, err)
 	}
 
 	sg := &SettingGroup{

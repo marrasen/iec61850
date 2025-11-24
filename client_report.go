@@ -9,6 +9,7 @@ extern void reportCallbackLogging(void* parameter, ClientReport report);
 */
 import "C"
 import (
+	"fmt"
 	"unsafe"
 )
 
@@ -61,7 +62,7 @@ func (clientReport *ClientReport) GetElement(elementIndex int) (MmsValue, error)
 
 	MmsVal, err := toGoValue(cMmsValue, mmsType)
 	if err != nil {
-		return MmsValue{}, err
+		return MmsValue{}, fmt.Errorf("ClientReport.GetElement index=%d: %w", elementIndex, err)
 	}
 
 	return MmsValue{
@@ -141,7 +142,7 @@ func (clientReport *ClientReport) GetDataSetValues() (MmsValue, error) {
 
 	mmsValue, err := toGoValue(cMmsValue, mmsType)
 	if err != nil {
-		return MmsValue{}, err
+		return MmsValue{}, fmt.Errorf("ClientReport.GetDataSetValues convert: %w", err)
 	}
 
 	return MmsValue{
@@ -193,13 +194,13 @@ func (c *Client) TriggerGIReport(objectReference string) error {
 
 	rcb := C.IedConnection_getRCBValues(c.conn, &clientError, cObjectRef, nil)
 	if err := GetIedClientError(clientError); err != nil {
-		return err
+		return fmt.Errorf("TriggerGIReport get RCB %q: %w", objectReference, err)
 	}
 	defer C.ClientReportControlBlock_destroy(rcb)
 
 	C.IedConnection_triggerGIReport(c.conn, &clientError, cObjectRef)
 	if err := GetIedClientError(clientError); err != nil {
-		return err
+		return fmt.Errorf("TriggerGIReport %q: %w", objectReference, err)
 	}
 
 	return nil

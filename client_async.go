@@ -12,6 +12,7 @@ package iec61850
 import "C"
 
 import (
+	"fmt"
 	"runtime/cgo"
 	"unsafe"
 )
@@ -35,12 +36,24 @@ type varSpecCtx struct {
 	handler VarSpecHandler
 }
 
+// storeHandleInC allocates a small C memory block to hold the cgo.Handle value
+// and returns its pointer for use as a callback parameter. The memory must be
+// released with C.free by the callback once the handle is no longer needed.
+func storeHandleInC(h cgo.Handle) unsafe.Pointer {
+	// allocate memory to store a uintptr
+	p := C.malloc(C.size_t(unsafe.Sizeof(uintptr(0))))
+	// write the handle value into the allocated memory
+	*(*uintptr)(p) = uintptr(h)
+	return p
+}
+
 //export nameListCallbackFunctionBridge
 func nameListCallbackFunctionBridge(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, nameList C.LinkedList, moreFollows C.bool) {
 	// Recover handler from parameter handle
 	var h cgo.Handle
 	if parameter != nil {
-		h = cgo.Handle(uintptr(parameter))
+		u := *(*uintptr)(parameter)
+		h = cgo.Handle(u)
 	}
 
 	var handler NameListHandler
@@ -73,6 +86,9 @@ func nameListCallbackFunctionBridge(invokeId C.uint32_t, parameter unsafe.Pointe
 	// Release handle when finished (no more pages expected or on error)
 	if h != 0 && (!bool(moreFollows) || goErr != nil) {
 		h.Delete()
+		if parameter != nil {
+			C.free(parameter)
+		}
 	}
 }
 
@@ -80,7 +96,8 @@ func nameListCallbackFunctionBridge(invokeId C.uint32_t, parameter unsafe.Pointe
 func varSpecCallbackFunctionBridge(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, spec *C.MmsVariableSpecification) {
 	var h cgo.Handle
 	if parameter != nil {
-		h = cgo.Handle(uintptr(parameter))
+		u := *(*uintptr)(parameter)
+		h = cgo.Handle(u)
 	}
 	var handler VarSpecHandler
 	if h != 0 {
@@ -103,6 +120,9 @@ func varSpecCallbackFunctionBridge(invokeId C.uint32_t, parameter unsafe.Pointer
 
 	if h != 0 {
 		h.Delete()
+	}
+	if parameter != nil {
+		C.free(parameter)
 	}
 }
 
@@ -172,10 +192,14 @@ func (c *Client) GetServerDirectoryAsync(continueAfter string, handler NameListH
 
 	// store handler in handle so we avoid race before registration
 	h := cgo.NewHandle(nameListCtx{handler: handler})
-	invokeId := C.IedConnection_getServerDirectoryAsync(c.conn, &clientError, cContinue, nil, (C.IedConnection_GetNameListHandler)(C.nameListCallbackBridge), unsafe.Pointer(uintptr(h)))
+	param := storeHandleInC(h)
+	invokeId := C.IedConnection_getServerDirectoryAsync(c.conn, &clientError, cContinue, nil, (C.IedConnection_GetNameListHandler)(C.nameListCallbackBridge), param)
 	if err := GetIedClientError(clientError); err != nil {
 		h.Delete()
-		return 0, err
+		if param != nil {
+			C.free(param)
+		}
+		return 0, fmt.Errorf("GetServerDirectoryAsync continueAfter=%q: %w", continueAfter, err)
 	}
 	return uint32(invokeId), nil
 }
@@ -191,10 +215,14 @@ func (c *Client) GetLogicalDeviceVariablesAsync(ldName, continueAfter string, ha
 		defer C.free(unsafe.Pointer(cContinue))
 	}
 	h := cgo.NewHandle(nameListCtx{handler: handler})
-	invokeId := C.IedConnection_getLogicalDeviceVariablesAsync(c.conn, &clientError, cLd, cContinue, nil, (C.IedConnection_GetNameListHandler)(C.nameListCallbackBridge), unsafe.Pointer(uintptr(h)))
+	param := storeHandleInC(h)
+	invokeId := C.IedConnection_getLogicalDeviceVariablesAsync(c.conn, &clientError, cLd, cContinue, nil, (C.IedConnection_GetNameListHandler)(C.nameListCallbackBridge), param)
 	if err := GetIedClientError(clientError); err != nil {
 		h.Delete()
-		return 0, err
+		if param != nil {
+			C.free(param)
+		}
+		return 0, fmt.Errorf("GetLogicalDeviceVariablesAsync ld=%q continueAfter=%q: %w", ldName, continueAfter, err)
 	}
 	return uint32(invokeId), nil
 }
@@ -210,10 +238,14 @@ func (c *Client) GetLogicalDeviceDataSetsAsync(ldName, continueAfter string, han
 		defer C.free(unsafe.Pointer(cContinue))
 	}
 	h := cgo.NewHandle(nameListCtx{handler: handler})
-	invokeId := C.IedConnection_getLogicalDeviceDataSetsAsync(c.conn, &clientError, cLd, cContinue, nil, (C.IedConnection_GetNameListHandler)(C.nameListCallbackBridge), unsafe.Pointer(uintptr(h)))
+	param := storeHandleInC(h)
+	invokeId := C.IedConnection_getLogicalDeviceDataSetsAsync(c.conn, &clientError, cLd, cContinue, nil, (C.IedConnection_GetNameListHandler)(C.nameListCallbackBridge), param)
 	if err := GetIedClientError(clientError); err != nil {
 		h.Delete()
-		return 0, err
+		if param != nil {
+			C.free(param)
+		}
+		return 0, fmt.Errorf("GetLogicalDeviceDataSetsAsync ld=%q continueAfter=%q: %w", ldName, continueAfter, err)
 	}
 	return uint32(invokeId), nil
 }
@@ -225,10 +257,14 @@ func (c *Client) GetVariableSpecificationAsync(dataAttributeReference string, fc
 	defer C.free(unsafe.Pointer(cRef))
 
 	h := cgo.NewHandle(varSpecCtx{handler: handler})
-	invokeId := C.IedConnection_getVariableSpecificationAsync(c.conn, &clientError, cRef, C.FunctionalConstraint(fc), (C.IedConnection_GetVariableSpecificationHandler)(C.varSpecCallbackBridge), unsafe.Pointer(uintptr(h)))
+	param := storeHandleInC(h)
+	invokeId := C.IedConnection_getVariableSpecificationAsync(c.conn, &clientError, cRef, C.FunctionalConstraint(fc), (C.IedConnection_GetVariableSpecificationHandler)(C.varSpecCallbackBridge), param)
 	if err := GetIedClientError(clientError); err != nil {
 		h.Delete()
-		return 0, err
+		if param != nil {
+			C.free(param)
+		}
+		return 0, fmt.Errorf("GetVariableSpecificationAsync ref=%q fc=%s: %w", dataAttributeReference, fc, err)
 	}
 	return uint32(invokeId), nil
 }
