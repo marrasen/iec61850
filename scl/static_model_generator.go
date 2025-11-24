@@ -786,7 +786,7 @@ func (s *StaticModelGenerator) printReportControlBlockInstance(lnPrefix string, 
 	// Add Logical Node reference
 	rcbString.WriteString(fmt.Sprintf("&%s, ", lnPrefix))
 
-	// Add Report Name
+	// Add Report LN
 	rcbString.WriteString(fmt.Sprintf("\"%s%s\", ", rcb.Name, index))
 
 	// Add RptID

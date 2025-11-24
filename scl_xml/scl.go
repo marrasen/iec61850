@@ -252,7 +252,7 @@ func (scl *SCL) Print() {
 }
 
 func (ied *IED) Print(depth int) {
-	fmt.Printf("%sIED Name: %s, Type: %s, Desc: %s\n", getIndentation(depth), ied.Name, ied.Type, ied.Desc)
+	fmt.Printf("%sIED LN: %s, Type: %s, Desc: %s\n", getIndentation(depth), ied.Name, ied.Type, ied.Desc)
 	for _, ap := range ied.AccessPoint {
 		fmt.Printf("%sAccessPoint: %s\n", getIndentation(depth+1), ap.Name)
 		for _, ld := range ap.LDevice {
@@ -272,7 +272,7 @@ func (ln *LN) Print(depth int) {
 }
 
 func (doi *DOI) Print(depth int) {
-	fmt.Printf("%sDOI Name: %s, Desc: %s\n", getIndentation(depth), doi.Name, doi.Desc)
+	fmt.Printf("%sDOI LN: %s, Desc: %s\n", getIndentation(depth), doi.Name, doi.Desc)
 	for _, dai := range doi.DAI {
 		dai.Print(depth + 1)
 	}
@@ -283,7 +283,7 @@ func (doi *DOI) Print(depth int) {
 }
 
 func (dai *DAI) Print(depth int) {
-	fmt.Printf("%sDAI Name: %s, Value: %s\n", getIndentation(depth), dai.Name, dai.Val.Value)
+	fmt.Printf("%sDAI LN: %s, Value: %s\n", getIndentation(depth), dai.Name, dai.Val.Value)
 	for _, sdi := range dai.SDI {
 		sdi.Print(depth + 1)
 	}
@@ -329,7 +329,7 @@ func (dt DataTypeTemplates) Print(depth int) {
 	for _, et := range dt.EnumType {
 		fmt.Printf("%sEnumType: %s\n", getIndentation(depth+1), et.ID)
 		for _, ev := range et.EnumVal {
-			fmt.Printf("%sEnumVal: Ord: %d, Name: %s\n", getIndentation(depth+2), ev.Ord, ev.Name)
+			fmt.Printf("%sEnumVal: Ord: %d, LN: %s\n", getIndentation(depth+2), ev.Ord, ev.Name)
 		}
 	}
 }

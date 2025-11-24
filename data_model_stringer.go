@@ -1,6 +1,8 @@
 package iec61850
 
-import "strings"
+import (
+	"strings"
+)
 
 // Pretty Stringers with indentation starting at top node "DataModel"
 
@@ -125,7 +127,15 @@ func (da DA) String() string {
 }
 
 func (da DA) writeTo(b *strings.Builder, level int) {
-	b.WriteString(indent(level) + "DA: " + da.Data + " Ref: " + da.Ref + "\n")
+	// Compose a single line with Data, Ref, FC and MMS Type
+	b.WriteString(indent(level))
+	b.WriteString("DA: ")
+	b.WriteString(da.Data)
+	b.WriteString(" Ref: ")
+	b.WriteString(da.Ref)
+	b.WriteString(" FC: ")
+	b.WriteString(da.FC.String())
+	b.WriteString("\n")
 	for _, child := range da.DAs {
 		child.writeTo(b, level+1)
 	}

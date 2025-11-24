@@ -49,7 +49,7 @@ func downloadHandler(parameter unsafe.Pointer, buffer *C.uint8_t, bytesRead C.ui
 	 */
 	data := C.GoBytes(unsafe.Pointer(buffer), C.int(bytesRead))
 
-	// Write the data to the `downloadWriter`. Handle any errors during the writing process.
+	// WriteObject the data to the `downloadWriter`. Handle any errors during the writing process.
 	n, err := writer.Write(data)
 	if err != nil {
 		// If an error occurs, register it using the `Err` method of `downloadWriter`

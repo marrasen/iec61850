@@ -12,7 +12,7 @@ func TestRBC(t *testing.T) {
 	defer test.CloseClient(client)
 
 	objectRef := "simpleIOGenericIO/GGIO1.SPCSO1.stVal"
-	value, err := client.Read(objectRef, iec61850.ST)
+	value, err := client.ReadObject(objectRef, iec61850.ST)
 	if err != nil {
 		t.Fatal(err)
 	}

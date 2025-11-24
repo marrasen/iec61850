@@ -20,21 +20,20 @@ func sameDataSet(a, b string) bool {
 }
 
 // PickAndEnableStatDRBRCB selects a free buffered report control block (BRCB)
-// under <ld>/LLN0 matching the prefix "rcbStatDR" (case-sensitive), configures
+// under <ld>/<ln> matching the prefix "rcbStatDR" (case-sensitive), configures
 // it to the provided datasetRef, sets reasonable trigger options and timing,
 // enables reporting, and returns the full RCB reference and a cleanup function
 // that disables the RCB (RptEna=false).
 //
 // The function tries all matching RCBs and returns the first that can be
 // successfully enabled. If none can be enabled it returns an error.
-func (c *Client) PickAndEnableStatDRBRCB(ld string, datasetRef string) (string, func() error, error) {
-	ln := "LLN0"
+func (c *Client) PickAndEnableStatDRBRCB(ld, ln string, datasetRef string) (string, func() error, error) {
 	lnRef := fmt.Sprintf("%s/%s", ld, ln)
 
 	log.Printf("Picking free StatDR BRCB for %s", lnRef)
 
 	// List all BRCB names for LLN0
-	names, err := c.ListBRCBsForLN(ld, ln)
+	names, err := c.GetLogicalNodeDirectory(fmt.Sprintf("%s/%s", ld, ln), ACSI_CLASS_BRCB)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to list BRCBs for %s: %w", lnRef, err)
 	}
@@ -49,7 +48,7 @@ func (c *Client) PickAndEnableStatDRBRCB(ld string, datasetRef string) (string, 
 
 		log.Printf("Trying %s", rcbRef)
 
-		// Read current values
+		// ReadObject current values
 		rcb, err := c.GetRCBValues(rcbRef)
 		if err != nil || rcb == nil {
 			log.Printf("Note: GetRCBValues for %s failed, will continue to next rcb. Error was: %s", rcbRef, err)
@@ -87,17 +86,25 @@ func (c *Client) PickAndEnableStatDRBRCB(ld string, datasetRef string) (string, 
 		}
 
 		// Configure trigger options and timing
-		ops := TrgOps{DataChange: true, TriggeredPeriodically: true, Gi: true}
+		ops := TrgOps{DataChange: true, TriggeredPeriodically: false, Gi: true}
 		if err := c.SetTrgOps(rcbRef, ops); err != nil {
 			// some IEDs may restrict changes, still continue
+			log.Printf("Note: SetTrgOps failed for %s, will ignore. Error was: %s", rcbRef, err)
 		}
 		// BufTm and IntgPd typical for StatDR
-		_ = c.SetBufTm(rcbRef, 50)
-		_ = c.SetIntgPd(rcbRef, 10000)
-		_ = c.SetGI(rcbRef, true)
+		if err := c.SetBufTm(rcbRef, 50); err != nil {
+			log.Printf("Note: SetBufTm failed for %s, will ignore. Error was: %s", rcbRef, err)
+		}
+		/*if err := c.SetIntgPd(rcbRef, 10000); err != nil {
+			log.Printf("Note: SetIntgPd failed for %s, will ignore. Error was: %s", rcbRef, err)
+		}*/
+		if err := c.SetGI(rcbRef, true); err != nil {
+			log.Printf("Note: SetGI failed for %s, will ignore. Error was: %s", rcbRef, err)
+		}
 
 		// Enable
 		if err := c.SetRptEna(rcbRef, true); err != nil {
+			log.Printf("Note: SetRptEna failed for %s, will continue to next rcb. Error was: %s", rcbRef, err)
 			// try next candidate when enabling fails
 			continue
 		}

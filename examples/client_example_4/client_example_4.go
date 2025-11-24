@@ -86,7 +86,7 @@ func findStValInDO(doStruct *iec.MmsValue) *iec.MmsValue {
 // enableBrcb configures and enables a buffered RCB following a safe ordering
 // Note: Buffered vs Unbuffered is selected by choosing an appropriate RCB reference (BRCB vs URCB) on the server.
 func enableBrcb(client *iec.Client, brcbRef, datasetRef string, bufTmMs, intgPdMs uint32, giOnEnable bool) error {
-	// Read RCB to get RptId and check existence
+	// ReadObject RCB to get RptId and check existence
 	rcb, err := client.GetRCBValues(brcbRef)
 	if err != nil || rcb == nil {
 		return fmt.Errorf("get RCB values failed for %s: %v", brcbRef, err)
@@ -174,7 +174,7 @@ func run() error {
 		IdxEManTrg:    7,
 	}}
 
-	// Read RCB to get rptId for handler installation
+	// ReadObject RCB to get rptId for handler installation
 	rcb, err := client.GetRCBValues(brcbRef)
 	if err != nil || rcb == nil {
 		return fmt.Errorf("failed to read RCB values for %s: %v", brcbRef, err)

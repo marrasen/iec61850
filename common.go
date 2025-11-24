@@ -3,6 +3,7 @@ package iec61850
 import (
 	"fmt"
 	"time"
+	"unsafe"
 )
 
 /*
@@ -125,4 +126,14 @@ func (receiver *Timestamp) GetSubSecondPrecision() int {
 func (receiver *Timestamp) SetTime(time time.Time) *Timestamp {
 	C.Timestamp_setTimeInNanoseconds(&receiver.cTimestamp, C.nsSinceEpoch(time.UnixNano()))
 	return receiver
+}
+
+// FunctionalConstraintFromString converts a functional constraint short name like
+// "ST", "MX", ... to the corresponding FC value using libiec61850.
+// If the string is not recognized, IEC61850_FC_NONE is returned.
+func FunctionalConstraintFromString(s string) FC {
+	cs := C.CString(s)
+	defer C.free(unsafe.Pointer(cs))
+	fc := C.FunctionalConstraint_fromString(cs)
+	return FC(fc)
 }

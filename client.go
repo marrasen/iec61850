@@ -11,6 +11,8 @@ type Client struct {
 	conn      C.IedConnection
 	tlsConfig C.TLSConfiguration
 	connected *atomic.Bool
+	// closedHandlerId stores the callback id for the connection closed handler (if installed)
+	closedHandlerId int32
 }
 
 // Settings connection configuration
@@ -56,8 +58,8 @@ func newClient(settings Settings, tlsConfig *TLSConfig) (*Client, error) {
 	return client, nil
 }
 
-// Write a single attribute value; Structure is not supported
-func (c *Client) Write(objectRef string, fc FC, value interface{}) error {
+// WriteObject a single attribute value; Structure is not supported
+func (c *Client) WriteObject(objectRef string, fc FC, value interface{}) error {
 	mmsType, err := c.GetVariableSpecType(objectRef, fc)
 	if err != nil {
 		return err
@@ -79,8 +81,8 @@ func (c *Client) Write(objectRef string, fc FC, value interface{}) error {
 	return GetIedClientError(clientError)
 }
 
-// ReadBool reads a bool value
-func (c *Client) ReadBool(objectRef string, fc FC) (bool, error) {
+// ReadBoolValue reads a bool value
+func (c *Client) ReadBoolValue(objectRef string, fc FC) (bool, error) {
 	cObjectRef := C.CString(objectRef)
 	defer C.free(unsafe.Pointer(cObjectRef))
 
@@ -92,8 +94,8 @@ func (c *Client) ReadBool(objectRef string, fc FC) (bool, error) {
 	return bool(value), nil
 }
 
-// ReadInt32 reads an int32 value
-func (c *Client) ReadInt32(objectRef string, fc FC) (int32, error) {
+// ReadInt32Value reads an int32 value
+func (c *Client) ReadInt32Value(objectRef string, fc FC) (int32, error) {
 	cObjectRef := C.CString(objectRef)
 	defer C.free(unsafe.Pointer(cObjectRef))
 
@@ -105,8 +107,8 @@ func (c *Client) ReadInt32(objectRef string, fc FC) (int32, error) {
 	return int32(value), nil
 }
 
-// ReadInt64 reads an int64 value
-func (c *Client) ReadInt64(objectRef string, fc FC) (int64, error) {
+// ReadInt64Value reads an int64 value
+func (c *Client) ReadInt64Value(objectRef string, fc FC) (int64, error) {
 	cObjectRef := C.CString(objectRef)
 	defer C.free(unsafe.Pointer(cObjectRef))
 
@@ -118,8 +120,8 @@ func (c *Client) ReadInt64(objectRef string, fc FC) (int64, error) {
 	return int64(value), nil
 }
 
-// ReadUint32 reads a uint32 value
-func (c *Client) ReadUint32(objectRef string, fc FC) (uint32, error) {
+// ReadUint32Value reads a uint32 value
+func (c *Client) ReadUint32Value(objectRef string, fc FC) (uint32, error) {
 	cObjectRef := C.CString(objectRef)
 	defer C.free(unsafe.Pointer(cObjectRef))
 
@@ -131,8 +133,8 @@ func (c *Client) ReadUint32(objectRef string, fc FC) (uint32, error) {
 	return uint32(value), nil
 }
 
-// ReadFloat reads a float value
-func (c *Client) ReadFloat(objectRef string, fc FC) (float32, error) {
+// ReadFloatValue reads a float value
+func (c *Client) ReadFloatValue(objectRef string, fc FC) (float32, error) {
 	cObjectRef := C.CString(objectRef)
 	defer C.free(unsafe.Pointer(cObjectRef))
 
@@ -145,8 +147,8 @@ func (c *Client) ReadFloat(objectRef string, fc FC) (float32, error) {
 	return float32(value), nil
 }
 
-// ReadString reads a string value
-func (c *Client) ReadString(objectRef string, fc FC) (string, error) {
+// ReadStringValue reads a string value
+func (c *Client) ReadStringValue(objectRef string, fc FC) (string, error) {
 	cObjectRef := C.CString(objectRef)
 	defer C.free(unsafe.Pointer(cObjectRef))
 
@@ -158,8 +160,8 @@ func (c *Client) ReadString(objectRef string, fc FC) (string, error) {
 	return C.GoString(value), nil
 }
 
-// Read reads attribute data
-func (c *Client) Read(objectRef string, fc FC) (interface{}, error) {
+// ReadObject reads attribute data
+func (c *Client) ReadObject(objectRef string, fc FC) (*MmsValue, error) {
 	var clientError C.IedClientError
 	cObjectRef := C.CString(objectRef)
 	defer C.free(unsafe.Pointer(cObjectRef))
@@ -171,11 +173,20 @@ func (c *Client) Read(objectRef string, fc FC) (interface{}, error) {
 
 	defer C.MmsValue_delete(mmsValue)
 	mmsType := MmsType(C.MmsValue_getType(mmsValue))
-	return toGoValue(mmsValue, mmsType)
+	// Convert to Go value (including recursive conversion for Structure/Array)
+	goVal, err := toGoValue(mmsValue, mmsType)
+	if err != nil {
+		return nil, err
+	}
+	retMmsValue := &MmsValue{
+		Type:  mmsType,
+		Value: goVal,
+	}
+	return retMmsValue, nil
 }
 
-// ReadDataSet reads a DataSet
-func (c *Client) ReadDataSet(objectRef string) ([]*MmsValue, error) {
+// ReadDataSetValues reads a DataSet
+func (c *Client) ReadDataSetValues(objectRef string) ([]*MmsValue, error) {
 	cObjectRef := C.CString(objectRef)
 	defer C.free(unsafe.Pointer(cObjectRef))
 
@@ -214,6 +225,14 @@ func (c *Client) Close() {
 
 		if c.tlsConfig != nil {
 			C.TLSConfiguration_destroy(c.tlsConfig)
+		}
+
+		// cleanup: remove any registered connection-closed callback from our map
+		if c.closedHandlerId != 0 {
+			connectionClosedCallbacksMu.Lock()
+			delete(connectionClosedCallbacks, c.closedHandlerId)
+			connectionClosedCallbacksMu.Unlock()
+			c.closedHandlerId = 0
 		}
 	}
 }
@@ -264,6 +283,15 @@ func (c *Client) getSubElementValue(sgcbVal *C.MmsValue, sgcbVarSpec *C.MmsVaria
 	mmsValue := C.MmsValue_getSubElement(sgcbVal, sgcbVarSpec, mmsPath)
 	defer C.MmsValue_delete(mmsValue)
 	return toGoValue(mmsValue, MmsType(C.MmsValue_getType(mmsValue)))
+}
+
+// GetDeviceModelFromServer retrieves and buffers the complete device model from the server
+// by invoking the underlying libiec61850 API IedConnection_getDeviceModelFromServer.
+// The buffered model can then be browsed by subsequent API calls.
+func (c *Client) GetDeviceModelFromServer() error {
+	var clientError C.IedClientError
+	C.IedConnection_getDeviceModelFromServer(c.conn, &clientError)
+	return GetIedClientError(clientError)
 }
 
 // connect establishes a connection

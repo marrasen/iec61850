@@ -157,3 +157,7 @@ func mmsTypeName(t MmsType) string {
 		return fmt.Sprintf("MmsType(%d)", int(t))
 	}
 }
+
+func (mt MmsType) String() string {
+	return mmsTypeName(mt)
+}

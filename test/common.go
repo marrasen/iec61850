@@ -41,7 +41,7 @@ func CloseClient(client *iec61850.Client) {
 }
 
 func DoRead(t *testing.T, client *iec61850.Client, objectRef string, fc iec61850.FC) {
-	value, err := client.Read(objectRef, fc)
+	value, err := client.ReadObject(objectRef, fc)
 	if err != nil {
 		t.Fatalf("read %s object error %v\n", objectRef, err)
 	}

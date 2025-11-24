@@ -125,7 +125,7 @@ func toGoStructure(mmsValue *C.MmsValue, mmsType MmsType) ([]*MmsValue, error) {
 	mmsValues := make([]*MmsValue, 0)
 	for i := 0; ; i++ {
 		value := C.MmsValue_getElement(mmsValue, C.int(i))
-		// 读不到表示节点下没有属性了
+		// Cannot read more elements, indicating no more attributes under this node
 		if value == nil {
 			return mmsValues, nil
 		}

@@ -72,12 +72,14 @@ func main() {
 	var host string
 	var port int
 	var ld string
+	var ln string
 	var ds string
 	var idxERcdStored int
 
 	flag.StringVar(&host, "h", "192.0.2.10", "IED host or IP")
 	flag.IntVar(&port, "p", 102, "IED TCP port")
 	flag.StringVar(&ld, "ld", "T11LD0", "Logical device name")
+	flag.StringVar(&ln, "ln", "LLN0", "Logical node name")
 	flag.StringVar(&ds, "ds", "T11LD0/LLN0$StatDR", "DataSet reference")
 	flag.IntVar(&idxERcdStored, "idx", 2, "Index of ERcdStored DO within the StatDR DataSet")
 	flag.Parse()
@@ -96,8 +98,13 @@ func main() {
 	}
 	defer client.Close()
 
+	// Abort application if the client connection is lost
+	_ = client.InstallConnectionClosedHandler(func() {
+		log.Fatalf("Connection to IED lost/closed - aborting application")
+	})
+
 	// Select and enable a StatDR BRCB
-	rcbRef, cleanup, err := client.PickAndEnableStatDRBRCB(ld, ds)
+	rcbRef, cleanup, err := client.PickAndEnableStatDRBRCB(ld, ln, ds)
 	if err != nil {
 		log.Fatalf("PickAndEnableStatDRBRCB: %v", err)
 	}
@@ -112,7 +119,7 @@ func main() {
 		}
 	}()
 
-	// Read RCB to get rptId for handler registration
+	// ReadObject RCB to get rptId for handler registration
 	rcb, err := client.GetRCBValues(rcbRef)
 	if err != nil || rcb == nil || rcb.RptId == "" {
 		log.Fatalf("failed to read RptId for %s: %v", rcbRef, err)
@@ -120,20 +127,24 @@ func main() {
 
 	// Install report handler
 	if err := client.InstallReportHandler(rcbRef, rcb.RptId, func(cr iec.ClientReport) {
+		log.Printf("Report handler callback received!")
 		dsVals, err := cr.GetDataSetValues()
 		if err != nil {
 			return
 		}
 		if dsVals.Type != iec.Array && dsVals.Type != iec.Structure {
+			log.Printf("Note: Unknown type %v", dsVals.Type)
 			return
 		}
 		arr, ok := dsVals.Value.([]*iec.MmsValue)
 		if !ok || idxERcdStored < 0 || idxERcdStored >= len(arr) {
+			log.Printf("Wrong index for idxERcdStored: %d, expected max: %d", idxERcdStored, len(arr))
 			return
 		}
 		doStruct := arr[idxERcdStored]
 		stVal := findFirstStVal(doStruct)
 		if stVal == nil {
+			log.Printf("Could not find stVal for %s", doStruct)
 			return
 		}
 		// Evaluate stVal as integer/boolean
@@ -155,11 +166,13 @@ func main() {
 		if triggered {
 			if ms, ok := findTimestampMs(doStruct); ok {
 				ts := time.Unix(0, int64(ms)*int64(time.Millisecond)).UTC()
-				fmt.Printf("Ny störning lagrad! ts=%s (ms=%d)\n", ts.Format(time.RFC3339), ms)
+				log.Printf("Ny störning lagrad! ts=%s (ms=%d)\n", ts.Format(time.RFC3339), ms)
 			} else {
-				fmt.Printf("Ny störning lagrad!\n")
+				log.Printf("Ny störning lagrad!\n")
 			}
 			// Here you could trigger COMTRADE retrieval
+		} else {
+			log.Printf("Did not detect trigger on %+v: %+v", doStruct, stVal)
 		}
 	}); err != nil {
 		log.Fatalf("InstallReportHandler: %v", err)

@@ -103,3 +103,20 @@ const (
 	// ACSE_AUTH_TLS Use TLS certificate for client authentication
 	ACSE_AUTH_TLS
 )
+
+// ACSIClass represents the different ACSI class types as defined in IEC 61850
+type ACSIClass int
+
+const (
+	ACSI_CLASS_DATA_OBJECT ACSIClass = iota
+	ACSI_CLASS_DATA_SET
+	ACSI_CLASS_BRCB
+	ACSI_CLASS_URCB
+	ACSI_CLASS_LCB
+	ACSI_CLASS_LOG
+	ACSI_CLASS_SGCB
+	ACSI_CLASS_GoCB
+	ACSI_CLASS_GsCB
+	ACSI_CLASS_MSVCB
+	ACSI_CLASS_USVCB
+)

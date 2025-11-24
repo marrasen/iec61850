@@ -19,6 +19,7 @@ func run() error {
 
 	fmt.Printf("Using libIEC61850 version %s\n\n", iec61850.GetVersionString())
 
+	fmt.Println("Connecting to server...")
 	client, err := iec61850.NewClient(iec61850.Settings{
 		Host:           host,
 		Port:           port,
@@ -30,7 +31,11 @@ func run() error {
 	}
 	defer client.Close()
 
-	list := client.GetLogicalDeviceList()
+	fmt.Println("Connected! Getting data model...")
+	list, err := client.GetDataModel()
+	if err != nil {
+		return err
+	}
 	fmt.Printf("%s\n", list)
 
 	return nil

@@ -38,14 +38,14 @@ func run() error {
 
 	fmt.Println("Connected")
 
-	// Read a DataSet: simpleIOGenericIO/LLN0.Events
+	// ReadObject a DataSet: simpleIOGenericIO/LLN0.Events
 	ref := "T11DR/RDRE1.NamPlt.swRev"
-	read, err := client.Read(ref, iec61850.DC)
+	read, err := client.ReadObject(ref, iec61850.DC)
 	if err != nil {
 		fmt.Println("failed to read", ref)
 		log.Println(err)
 	} else {
-		fmt.Printf("Read '%s' = %v\n", ref, read)
+		fmt.Printf("ReadObject '%s' = %v\n", ref, read)
 	}
 
 	return nil

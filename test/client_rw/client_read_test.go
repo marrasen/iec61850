@@ -3,9 +3,10 @@ package client_rw
 import (
 	"encoding/json"
 	"fmt"
+	"testing"
+
 	"github.com/marrasen/iec61850"
 	"github.com/marrasen/iec61850/test"
-	"testing"
 )
 
 const (
@@ -26,7 +27,7 @@ func TestReadFloat(t *testing.T) {
 	defer test.CloseClient(client)
 	objectRef := AnIn1ObjectRef
 
-	value, err := client.ReadFloat(objectRef, iec61850.MX)
+	value, err := client.ReadFloatValue(objectRef, iec61850.MX)
 	if err != nil {
 		t.Fatalf("read %s object error %v\n", objectRef, err)
 	}
@@ -38,7 +39,7 @@ func TestReadBool(t *testing.T) {
 	defer test.CloseClient(client)
 
 	objectRef := Ind1ObjectRef
-	value, err := client.ReadBool(objectRef, iec61850.ST)
+	value, err := client.ReadBoolValue(objectRef, iec61850.ST)
 	if err != nil {
 		t.Fatalf("read %s object error %v\n", objectRef, err)
 	}
@@ -49,7 +50,10 @@ func TestGetLogicalDeviceList(t *testing.T) {
 	client := test.CreateClient(t)
 	defer test.CloseClient(client)
 
-	deviceList := client.GetLogicalDeviceList()
+	deviceList, err := client.GetDataModel()
+	if err != nil {
+		t.Fatal(err)
+	}
 	marshal, err := json.Marshal(deviceList)
 	if err != nil {
 		t.Fatal(err)

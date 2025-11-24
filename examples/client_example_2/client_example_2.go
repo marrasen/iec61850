@@ -39,7 +39,7 @@ func run() error {
 
 	fmt.Println("Connected")
 
-	// Read RCB values (Buffered or Unbuffered as per C example name)
+	// ReadObject RCB values (Buffered or Unbuffered as per C example name)
 	rcbRef := "T11LD0/LLN0.BR.rcbMeasFlt01"
 	rcb, err := client.GetRCBValues(rcbRef)
 	if err != nil || rcb == nil {

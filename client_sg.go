@@ -24,22 +24,22 @@ type SettingGroup struct {
 // WriteSG 写入SettingGroup
 func (c *Client) WriteSG(ld, ln, objectRef string, fc FC, actSG int, value interface{}) error {
 	// Set active setting group
-	if err := c.Write(fmt.Sprintf(ActDA, ld, ln), SP, actSG); err != nil {
+	if err := c.WriteObject(fmt.Sprintf(ActDA, ld, ln), SP, actSG); err != nil {
 		return err
 	}
 
 	// Set edit setting group
-	if err := c.Write(fmt.Sprintf(EditDA, ld, ln), SP, actSG); err != nil {
+	if err := c.WriteObject(fmt.Sprintf(EditDA, ld, ln), SP, actSG); err != nil {
 		return err
 	}
 
 	// Change a setting group value
-	if err := c.Write(objectRef, fc, value); err != nil {
+	if err := c.WriteObject(objectRef, fc, value); err != nil {
 		return err
 	}
 
 	// Confirm new setting group values
-	if err := c.Write(fmt.Sprintf(CnfDA, ld, ln), SP, true); err != nil {
+	if err := c.WriteObject(fmt.Sprintf(CnfDA, ld, ln), SP, true); err != nil {
 		return err
 	}
 	return nil
@@ -58,7 +58,7 @@ func (c *Client) GetSG(objectRef string) (*SettingGroup, error) {
 	}
 	defer C.MmsVariableSpecification_destroy(sgcbVarSpec)
 
-	// Read SGCB
+	// ReadObject SGCB
 	sgcbVal := C.IedConnection_readObject(c.conn, &clientError, cObjectRef, C.FunctionalConstraint(SP))
 	if err := GetIedClientError(clientError); err != nil {
 		return nil, err

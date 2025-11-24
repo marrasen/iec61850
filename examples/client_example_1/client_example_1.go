@@ -39,26 +39,26 @@ func run() error {
 
 	fmt.Println("Connected")
 
-	// Read a float value: simpleIOGenericIO/GGIO1.AnIn1.mag.f (FC=MX)
-	if fval, err := client.ReadFloat("simpleIOGenericIO/GGIO1.AnIn1.mag.f", iec61850.MX); err != nil {
+	// ReadObject a float value: simpleIOGenericIO/GGIO1.AnIn1.mag.f (FC=MX)
+	if fval, err := client.ReadFloatValue("simpleIOGenericIO/GGIO1.AnIn1.mag.f", iec61850.MX); err != nil {
 		fmt.Printf("Failed to read float value: %v\n", err)
 	} else {
 		fmt.Printf("read float value: %f\n", fval)
 	}
 
-	// Write a visible string to simpleIOGenericIO/GGIO1.NamPlt.vendor (FC=DC)
-	if err := client.Write("simpleIOGenericIO/GGIO1.NamPlt.vendor", iec61850.DC, "libiec61850.com"); err != nil {
+	// WriteObject a visible string to simpleIOGenericIO/GGIO1.NamPlt.vendor (FC=DC)
+	if err := client.WriteObject("simpleIOGenericIO/GGIO1.NamPlt.vendor", iec61850.DC, "libiec61850.com"); err != nil {
 		fmt.Printf("failed to write simpleIOGenericIO/GGIO1.NamPlt.vendor! (error: %v)\n", err)
 	}
 
-	// Read a DataSet: simpleIOGenericIO/LLN0.Events
-	if ds, err := client.ReadDataSet("simpleIOGenericIO/LLN0.Events"); err != nil {
+	// ReadObject a DataSet: simpleIOGenericIO/LLN0.Events
+	if ds, err := client.ReadDataSetValues("simpleIOGenericIO/LLN0.Events"); err != nil {
 		fmt.Println("failed to read dataset")
 	} else {
-		fmt.Printf("Read dataset 'simpleIOGenericIO/LLN0.Events' with %d elements\n", len(ds))
+		fmt.Printf("ReadObject dataset 'simpleIOGenericIO/LLN0.Events' with %d elements\n", len(ds))
 	}
 
-	// Read RCB values (Buffered or Unbuffered as per C example name)
+	// ReadObject RCB values (Buffered or Unbuffered as per C example name)
 	rcbRef := "simpleIOGenericIO/LLN0.RP.EventsRCB01"
 	rcb, err := client.GetRCBValues(rcbRef)
 	if err != nil || rcb == nil {

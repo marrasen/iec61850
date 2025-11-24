@@ -16,7 +16,7 @@ func showDirectory(client *iec61850.Client, subdir string) error {
 		return err
 	}
 
-	fmt.Printf("%-30s %10s %-20s\n", "File Name", "File Size", "Last Modified")
+	fmt.Printf("%-30s %10s %-20s\n", "File LN", "File Size", "Last Modified")
 	fmt.Println(strings.Repeat("-", 60))
 	for _, file := range directory {
 		fmt.Printf("%-30s %10s %-20s\n", file.Name, fmt.Sprintf("%d", file.Size), file.LastModified.Format("2006-01-02 15:04:05"))
